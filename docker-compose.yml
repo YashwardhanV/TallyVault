@@ -1,0 +1,52 @@
+name: tallyvault
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tallyvault}
+      POSTGRES_USER: ${POSTGRES_USER:-tallyvault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tallyvault}
+    ports:
+      - "5432:5432"
+    volumes:
+      - tallyvault-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tallyvault} -d ${POSTGRES_DB:-tallyvault}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tallyvault}
+      DB_USERNAME: ${POSTGRES_USER:-tallyvault}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-tallyvault}
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me-123456}
+      DEMO_DATA_ENABLED: ${DEMO_DATA_ENABLED:-true}
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  tallyvault-postgres:
