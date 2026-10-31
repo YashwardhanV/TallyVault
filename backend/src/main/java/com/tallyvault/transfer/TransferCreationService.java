@@ -40,18 +40,19 @@ public class TransferCreationService {
         if (request.sourceAccountId().equals(request.destinationAccountId())) {
             throw ApiException.unprocessable("same_account", "source and destination accounts must differ");
         }
-        Account sourceReference = accounts.findById(request.sourceAccountId())
-            .orElseThrow(() -> ApiException.notFound("source account not found"));
-        if (!sourceReference.getOwner().getId().equals(actor.getId())) {
+        // Lock before any other read of these accounts. Loading an account first (e.g. findById) puts it in
+        // the persistence context, and the later SELECT ... FOR UPDATE then returns that stale cached
+        // instance, so two transfers would both see the old balance (overspend / lost updates).
+        AccountLockService.LockedAccounts locked = locks.lock(request.sourceAccountId(), request.destinationAccountId());
+        if (!locked.source().getOwner().getId().equals(actor.getId())) {
             throw ApiException.forbidden("you can transfer only from your own account");
         }
 
         LedgerTransaction transaction = new LedgerTransaction(TransactionType.TRANSFER, request.reference(), null);
-        transactions.save(transaction);
+        transaction = transactions.save(transaction);
         // Claim by INSERT, never check-then-insert. The database primary key resolves concurrent retries.
         idempotency.saveAndFlush(new IdempotencyRecord(key, requestHash, transaction));
 
-        AccountLockService.LockedAccounts locked = locks.lock(request.sourceAccountId(), request.destinationAccountId());
         validateAccounts(locked.source(), locked.destination(), actor, amount);
         ledger.postTwoLeggedTransfer(transaction, locked.source(), locked.destination(), amount);
         transaction.complete();

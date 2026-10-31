@@ -17,7 +17,6 @@ import com.tallyvault.transfer.IdempotencyRecordRepository;
 import com.tallyvault.transfer.TransferCreationService;
 import com.tallyvault.transfer.TransferDtos;
 import java.math.BigDecimal;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +52,6 @@ class TransferCreationServiceTest {
         Account destination = new Account(actor, "DEST", "Destination", "INR", false);
         var request = new TransferDtos.TransferRequest(source.getId(), destination.getId(),
             new BigDecimal("10.00"), "too much");
-        when(accounts.findById(source.getId())).thenReturn(Optional.of(source));
         when(locks.lock(source.getId(), destination.getId()))
             .thenReturn(new AccountLockService.LockedAccounts(source, destination));
 
@@ -72,7 +70,6 @@ class TransferCreationServiceTest {
         source.freeze();
         var request = new TransferDtos.TransferRequest(source.getId(), destination.getId(),
             new BigDecimal("10.00"), "frozen");
-        when(accounts.findById(source.getId())).thenReturn(Optional.of(source));
         when(locks.lock(source.getId(), destination.getId()))
             .thenReturn(new AccountLockService.LockedAccounts(source, destination));
 

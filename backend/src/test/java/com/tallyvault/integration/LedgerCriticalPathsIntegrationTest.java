@@ -183,7 +183,7 @@ class LedgerCriticalPathsIntegrationTest {
         var second = transfers.transfer("retry-three", request(aliceAccount, bobAccount, "25.00"), alice);
         var third = transfers.transfer("retry-three", request(aliceAccount, bobAccount, "25.00"), alice);
 
-        assertThat(Set.of(first.transactionId(), second.transactionId(), third.transactionId())).hasSize(1);
+        assertThat(new HashSet<>(List.of(first.transactionId(), second.transactionId(), third.transactionId()))).hasSize(1);
         assertThat(second.replayed()).isTrue();
         assertThat(third.replayed()).isTrue();
         assertThat(transactions.count() - before).isEqualTo(1);
